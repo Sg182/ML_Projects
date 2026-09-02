@@ -1,6 +1,6 @@
 # BigSolDB-T — Thermodynamic Inductive Bias for Solubility Extrapolation
 
-**Question:** does thermodynamic inductive bias improve solubility prediction
+**Question:** Does thermodynamic inductive bias improve solubility prediction
 under temperature and chemical distribution shift?
 
 **Scope:** a narrow methodology study on BigSolDB 2.0 (100,983 measurements
