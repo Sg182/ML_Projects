@@ -130,61 +130,89 @@ chemistry it places the whole curve at the wrong vertical position. Van't
 Hoff constrains the slope, not the intercept. This is the mechanism behind
 findings 5 and 6.
 
-### 8. Methodological note
+### 8. Methodological note — chemistry-OOD uncertainty
 
-The notebook-07 fixed-split cold-solute bootstrap CI [−0.029, −0.006]
-described uncertainty from resampling *examples within one partition*.
-Across-partition variability, measured in notebook 08 by repeated group
-holdouts, is larger and reverses the conclusion. For chemistry-OOD claims,
-repeated group holdouts are the appropriate uncertainty quantification.
+Findings 4 and 5 rest on different uncertainty questions, and conflating them
+is the trap this project fell into.
+
+On one fixed cold-solute partition, the paired cluster bootstrap on the 3-seed
+ensemble gave `Bc − A = −0.0171`, 95 % CI `[−0.0294, −0.0057]`,
+`P(Bc better) = 0.998` — extremely convincing *conditional on that partition*.
+Repeated cold-solute holdouts gave mean `Bc − A = +0.0085`, std ≈ `0.0093`,
+with Bc winning `1/5`. The sign of the conclusion reverses when the held-out
+chemistry changes.
+
+**A bootstrap within one fixed chemical partition measures uncertainty
+conditional on that held-out chemistry set. It does not capture uncertainty
+from which chemistry groups were selected for holdout. For chemistry-OOD
+claims, repeated group holdouts are therefore necessary.**
+
+The bootstrap is not wrong; it answered the question it was asked. The lesson is
+that **within-partition certainty can coexist with across-partition
+instability** — and here the across-partition term is the dominant one.
+
+**Ensembling subtlety.** Averaging predictions over N seeds reduces
+initialization noise and can tighten the within-partition confidence interval,
+but it does not reduce uncertainty associated with which solutes were held out.
+Ensembling can therefore make the conditional result look very precise while
+leaving the dominant chemistry-partition uncertainty untouched.
 
 ## Layout
 
 ```
-data/       BigSolDBv2.0.csv, densities
-notebooks/
-  01_audit                     dataset integrity + counts
-  02_prepare_features          RDKit descriptors -> features.npz
-  03_make_splits               5 frozen splits -> splits.npz
-  04_train / 05_summarize      historical single-seed workflow (kept for reference)
-  06_multiseed_benchmark       A/D/B/Bc x 5 splits x 3 seeds (60 runs)
-  07_vanthoff_diagnostics      per-pair fits, oracle, slope recovery, bootstrap, error decomposition
-  08_distribution_shift_stress_tests  repeated cold-sol + cold-pair; joint chem+T split
-scripts/
-  models.py                    A / D / B / Bc definitions
-  train.py                     reusable training loop
-  prepare_b_scale.py           training-only per-split b_scale
-  verify_parity.py             one-shot parity harness (see results/parity_report.md)
-results/
-  metrics.csv                          historical seed-42 A/D/B (untouched)
-  parity_report.md                     Phase-1 refactor bit-parity, max |ΔRMSE| = 4.55e-08
-  b_scale.json                         per-split training-only b_scale
-  metrics_descriptor_multiseed.csv     notebook 06 combined 60-run table
-  metrics_stage{4,5}.csv               notebook 06 A/D/B and Bc separately
-  metrics_repeated_coldsol.csv         notebook 08 repeated cold-solute holdouts
-  metrics_repeated_coldpair.csv        notebook 08 repeated cold-pair holdouts
-  metrics_coldsol_textrap.csv          notebook 08 joint chem+T split
-  bootstrap_bc_vs_a.csv                notebook 07 paired bootstrap CIs
-  preds/                               per-run npz (test_idx, pair_id, T, y_true, y_pred, slope_a, slope_b)
-  preds_coldsol_textrap/               per-run npz for the joint split
-  fig07_*.png, fig08_*.png             analysis figures
+data/        BigSolDBv2.0.csv, densities
+notebooks/   01_audit, 02_prepare_features, 03_make_splits    frozen inputs
+             04_train, 05_summarize                           historical single-seed (reference)
+             06_multiseed_benchmark                           A/D/B/Bc x 5 splits x 3 seeds
+             07_vanthoff_diagnostics                          per-pair fits, oracle, slope recovery,
+                                                              bootstrap, error decomposition
+             08_distribution_shift_stress_tests               repeated cold-sol/cold-pair, joint split
+scripts/     models.py            A / D / B / Bc definitions
+             train.py             frozen training loop + preds/metrics I/O
+             prepare_b_scale.py   training-only per-split b_scale -> b_scale.json
+             verify_parity.py     train.py vs the historical loop
+results/     features.npz, splits.npz    frozen inputs (committed)
+             metrics.csv                 historical seed-42 A/D/B (untouched)
+             b_scale.json                per-split training-only b_scale
+             parity_report.md            refactor parity check
+             metrics_*.csv               derived tables (regenerable)
+             preds/, *.pt                gitignored — regenerable, large
 ```
 
-## Reproducing
+## Reproducibility
+
+**Backend dependencies.** Notebook 06 imports `train` and `models`; notebook 08
+imports `train`, `models` and `prepare_b_scale.per_pair_slopes`; notebook 07 is
+pure analysis and reads only `features.npz`, `splits.npz`, `b_scale.json` and
+`results/preds/`.
+
+**Intentionally gitignored** (regenerable from committed code, too large to
+version): `results/preds/`, `results/preds_coldsol_textrap/`, `results/*.pt`.
+Everything needed to rebuild them is committed.
+
+**Regeneration order for a fresh checkout:**
 
 ```
-notebooks/01_audit.ipynb                             # dataset audit
-notebooks/02_prepare_features.ipynb                  # -> results/features.npz
-notebooks/03_make_splits.ipynb                       # -> results/splits.npz
-notebooks/06_multiseed_benchmark.ipynb               # ~60 min (60 training runs)
-notebooks/07_vanthoff_diagnostics.ipynb              # ~2 min (analysis only)
-notebooks/08_distribution_shift_stress_tests.ipynb   # ~40 min (54 training runs)
+notebooks/01_audit.ipynb                            # audit (optional)
+notebooks/02_prepare_features.ipynb                 # -> results/features.npz
+notebooks/03_make_splits.ipynb                      # -> results/splits.npz
+python3 scripts/prepare_b_scale.py                  # -> results/b_scale.json   (required by 06/07)
+python3 scripts/verify_parity.py                    # -> results/parity_report.md (optional check)
+notebooks/06_multiseed_benchmark.ipynb              # ~60 min; -> metrics_stage{4,5}.csv,
+                                                    #   metrics_descriptor_multiseed.csv, preds/
+notebooks/07_vanthoff_diagnostics.ipynb             # ~2 min; needs 06's preds/ + b_scale.json
+notebooks/08_distribution_shift_stress_tests.ipynb  # ~40 min; -> metrics_repeated_*.csv,
+                                                    #   metrics_coldsol_textrap.csv
 ```
 
-Training is bit-deterministic on a fixed machine, not cross-platform. The
-refactor of the historical training loop into `scripts/train.py` was verified
-to `max |ΔRMSE| = 4.55e-08` against `results/metrics.csv` on all 15 seed-42
-A/D/B combos (`scripts/verify_parity.py`).
+`prepare_b_scale.py` must run before notebook 06: Bc reads its scale constant
+from `b_scale.json`, fitted on training rows only. Notebook 07 depends on
+notebook 06's prediction files, which carry `pair_id`, `T`, and the per-row
+`(a, b)` of the two-parameter heads.
+
+Import `sklearn` before `torch` (libomp clash on macOS). Training is
+bit-deterministic on a fixed machine, not across platforms — see
+`results/parity_report.md`.
 
 ## Next
 

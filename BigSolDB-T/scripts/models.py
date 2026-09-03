@@ -91,4 +91,53 @@ def build_model(kind: str, n_desc: int, n_T_features: int = 1, **kwargs) -> nn.M
         return DirectModel(n_desc=n_desc, n_T_features=2, **kwargs)
     if kind == "B":
         return VantHoffModel(n_desc=n_desc, **kwargs)
+    if kind == "Bc":
+        return VantHoffScaledModel(n_desc=n_desc, **kwargs)
     raise ValueError(f"Unknown model kind {kind!r}")
+
+
+class VantHoffScaledModel(nn.Module):
+    """Model Bc — Model B with a conditioned slope parameterization.
+
+    Model B emits the Van't Hoff slope b directly, then multiplies it by
+    z = (1/T_ref - 1/T), which spans only about +/-1e-3 over this dataset. The
+    head must therefore output values of order 1e3 while the intercept a stays
+    of order 1 — the two head units differ in natural scale by ~1000x, and the
+    slope unit's gradient is attenuated by z.
+
+    Bc removes that asymmetry by folding a constant into the temperature
+    variable instead:
+
+        x_T = b_scale * (1/T_ref - 1/T)
+        logS(T) = a + beta * x_T
+
+    so beta = b / b_scale is O(1) alongside a. The function class is IDENTICAL
+    to Model B's -- this is a reparameterization, not a different model -- and
+    the physical slope is recovered exactly as b = beta * b_scale.
+
+    b_scale MUST be derived from training data only (median |b| of per-pair OLS
+    fits over training rows); see scripts/prepare_b_scale.py.
+    """
+
+    def __init__(self, n_desc: int, b_scale: float, hidden_dims=(256, 128),
+                 dropout=0.15, T_ref: float = T_REF):
+        super().__init__()
+        self.backbone = SharedBackbone(n_desc, hidden_dims, dropout)
+        self.head = nn.Linear(self.backbone.out_dim, 2)  # (a, beta)
+        self.T_ref = T_ref
+        # buffer, not parameter: fixed constant, saved with the checkpoint
+        self.register_buffer("b_scale", torch.tensor(float(b_scale)))
+
+    def forward(self, x_desc, T_raw):
+        """x_desc: (B, n_desc) standardized; T_raw: (B,) in Kelvin."""
+        h = self.backbone(x_desc)
+        ab = self.head(h)
+        a, beta = ab[:, 0], ab[:, 1]
+        x_T = self.b_scale * (1.0 / self.T_ref - 1.0 / T_raw)
+        return a + beta * x_T
+
+    def slope(self, x_desc):
+        """Recover the physical Van't Hoff slope b (model convention)."""
+        with torch.no_grad():
+            beta = self.head(self.backbone(x_desc))[:, 1]
+        return beta * self.b_scale

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "T_ref_K": 298.15,
+    "convention": "y = a + b * (1/T_ref - 1/T);  b > 0 => solubility rises with T",
+    "definition": "b_scale = median |b| of per-pair OLS fits over TRAINING ROWS ONLY",
+    "eligibility": {
+      "min_rows_per_pair": 3,
+      "min_distinct_temperatures": 3
+    }
+  },
+  "splits": {
+    "random": {
+      "b_scale": 1383.756379900725,
+      "n_pairs_used": 10381,
+      "n_pairs_in_train": 10791,
+      "n_train_rows": 80786
+    },
+    "textrap": {
+      "b_scale": 1344.5608998458347,
+      "n_pairs_used": 10385,
+      "n_pairs_in_train": 10854,
+      "n_train_rows": 67902
+    },
+    "coldsol": {
+      "b_scale": 1388.0578595869097,
+      "n_pairs_used": 8475,
+      "n_pairs_in_train": 8736,
+      "n_train_rows": 81610
+    },
+    "coldpair": {
+      "b_scale": 1381.8783086609383,
+      "n_pairs_used": 8404,
+      "n_pairs_in_train": 8684,
+      "n_train_rows": 80806
+    },
+    "coldsolv": {
+      "b_scale": 1387.5063061999992,
+      "n_pairs_used": 8131,
+      "n_pairs_in_train": 8434,
+      "n_train_rows": 77981
+    }
+  }
+}
