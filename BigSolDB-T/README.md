@@ -1,137 +1,197 @@
-# BigSolDB-T — Thermodynamic Inductive Bias for Solubility Extrapolation
+# BigSolDB-T — Thermodynamic Inductive Bias for Temperature-Dependent Solubility
 
-**Question:** Does thermodynamic inductive bias improve solubility prediction
-under temperature and chemical distribution shift?
+**Question:** When does thermodynamic inductive bias help temperature-dependent
+solubility prediction, and when does chemical representation remain the
+dominant bottleneck?
 
-**Scope:** a narrow methodology study on BigSolDB 2.0 (100,983 measurements
-after dropping missing `LogS`; 1,448 solutes, 70 solvents, 10,855 pairs)
-comparing matched-encoder models. Not an architecture race.
+**Dataset:** BigSolDB 2.0 (Krasnov et al. 2025). After dropping rows with
+missing `LogS`, 100,983 measurements across 1,445 solutes, 70 solvents,
+10,855 solute-solvent pairs, temperature 243.15–425.77 K.
 
-Status: **Stages 1–6 complete.** Stage 7 (GINE) designed, not implemented.
+## Current takeaway
 
----
+Van't Hoff is an excellent description of temperature dependence in BigSolDB.
+A scale-conditioned Van't Hoff head learns pair-specific temperature slopes
+far better than the naive implementation and improves temperature
+extrapolation for known chemistry. However, the advantage disappears under
+robust chemistry-shift and joint chemistry-temperature tests because the
+dominant error is the chemistry-dependent intercept rather than the
+temperature slope.
 
 ## Models
 
-All share one MLP backbone (256, 128), identical RDKit descriptors
-(198 solute + 149 solvent = 347), and identical training. Only temperature
-handling differs.
+All share identical solute+solvent RDKit descriptors (198 + 149 = 347 dim)
+and the same MLP backbone (256 → 128, dropout 0.15). Only the way temperature
+enters differs.
 
-| | T representation | Head | logS(T) |
+| | T representation | Head | log S(T) |
 |---|---|---|---|
-| **A** direct | raw `T` appended | → 1 | predicted directly |
-| **D** 1/T control | `[T, 1/T]` appended | → 1 | predicted directly |
-| **B** Van't Hoff (stock) | none | → (a, b) | `a + b·(1/T_ref − 1/T)` |
-| **Bc** Van't Hoff (conditioned) | none | → (a, β) | `a + β·b_scale·(1/T_ref − 1/T)` |
+| **A** direct | raw `T` appended | linear → 1 | predicted directly |
+| **D** 1/T control | `[T, 1/T]` appended | linear → 1 | predicted directly |
+| **B** Van't Hoff (stock) | none | linear → `(a, b)` | `a + b·(1/T_ref − 1/T)` |
+| **Bc** Van't Hoff (conditioned) | none | linear → `(a, β)` | `a + β·b_scale·(1/T_ref − 1/T)` |
 
-`b_scale` = median \|b\| of per-pair OLS fits over **training pairs only**
-(1381.8 K). Bc is a *reparameterization* of B — identical function class.
-Sign conventions and the ΔH derivation: `docs/vanthoff_conventions.md`.
+`T_ref = 298.15 K`. `b_scale` is the median `|b|` of per-pair OLS Van't Hoff
+fits over **training rows only** for each split (≈ 1382 K on every split).
+B and Bc are mathematically the same function class; Bc only rescales the
+head so both outputs live on comparable numerical scales at initialization.
 
-## Headline results (test RMSE, 3 seeds: 42/123/456)
+## Results
 
-| Split | A | D | B (stock) | **Bc** |
-|---|---:|---:|---:|---:|
-| random | **0.2023** | 0.2203 | 0.2584 | 0.2033 |
-| T-extrapolation | 0.2376 | 0.2401 | 0.3073 | **0.2204** |
-| cold-solute | 0.8997 | 0.9003 | 0.8870 | **0.8826** |
-| cold-pair | 0.5540 | 0.5549 | 0.5599 | **0.5483** |
-| cold-solvent\* | 0.4530 | 0.4624 | 0.4614 | **0.4413** |
+### 1. Van't Hoff is an excellent local description
 
-\*exploratory — only 7 held-out solvents; no claim drawn.
+Across 10,500 pairs with ≥ 3 distinct temperatures:
 
-Paired cluster bootstrap, Bc − A: **T-extrap [−0.0197, −0.0147], P = 1.00**;
-cold-solute [−0.0406, +0.0087], P = 0.89; cold-pair [−0.0214, +0.0081], P = 0.77.
+- median R² = 0.9965
+- median residual RMSE = 0.010 log S
+- median \|b\| = 1382 K
 
-## Observations
+Not exact thermodynamics; an excellent empirical approximation over BigSolDB's
+temperature ranges.
 
-1. **Random splits are misleading.** Test R² ≈ 0.97 on random vs ≈ 0.46 on
-   cold-solute. Chemistry identity is a far harder axis than temperature.
+### 2. The stock Van't Hoff head has an optimization-conditioning problem
 
-2. **The conditioned physics model wins on temperature.** Bc beats A on
-   T-extrapolation by 0.017 log units, consistent across seeds and the only
-   comparison whose bootstrap CI excludes zero. Mechanism confirmed: Bc recovers
-   per-pair Van't Hoff slopes at r = 0.49 vs A's 0.31.
+With `z = 1/T_ref − 1/T` and typical `|z| ~ 1e-4` in this dataset,
 
-3. **It does not win on chemistry.** Bc leads nominally on all three cold splits
-   and beats D consistently, but every Bc−A interval straddles zero and one
-   cold-solute seed reverses sign. Treat as a tie with a slight lean.
+- `dL/da ~ 1`
+- `dL/db ~ z ~ 1e-4`
 
-4. **The bottleneck is the intercept, not the thermodynamics.** Errors decompose
-   exactly as `err = da + db·z` with `|z| ≤ 1e-3`. Under cold-solute the
-   intercept error is **12×** the slope's entire contribution. Predicted curves
-   run parallel to observations but sit vertically offset — right temperature
-   response, wrong absolute solubility.
+The raw slope head receives a ~1000× smaller learning signal than the
+intercept head.
 
-5. **Chemical similarity does not predict who fails.** Intercept error vs
-   nearest-training-neighbour Tanimoto: ρ = −0.03 (no trend across quartiles).
-   Training coverage does track it (ρ = −0.18, monotone). The limit is what
-   RDKit descriptors encode, not distance from the training set.
+### 3. Reparameterization fixes it
 
-6. **Two corrections recorded** (both are results in their own right):
-   - The "degradation relative to random split" metric is **not** robustness
-     evidence. It equals `absolute difference − random-split gap`, so it
-     mechanically rewards a weak in-distribution baseline.
-   - Stock model B did **not** fail for lack of expressive capacity — its
-     trained slopes reached a median 1308 K against an empirical 1381 K. It
-     failed from optimization conditioning: two head outputs differing ~1000× in
-     natural scale, with the slope's gradient attenuated by `z ~ 1e-3`.
+Bc rescales `b = β · b_scale` so `dL/dβ ~ b_scale · z ~ O(1)`. Same function
+class; different conditioning. On slope recovery (per-pair effective slope vs
+empirical OLS, random split, seed 42, 6,490 pairs):
 
-7. **Constant-ΔH is a good description.** Per-pair Van't Hoff fits give median
-   R² = 0.996, residual 0.010 log units. Held-out Van't Hoff oracle 0.099 vs
-   T-blind 0.429. Kirchhoff curvature is therefore *not* the priority.
-   (The earlier 0.076 figure is an **in-sample fit error**, not a
-   generalization floor.)
+| model | Pearson r | Spearman ρ | MAE (K) |
+|---|---:|---:|---:|
+| B (stock) | 0.19 | 0.25 | 607 |
+| **Bc** (conditioned) | **0.73** | **0.69** | **386** |
+
+### 4. Bc robustly improves T-extrapolation for known chemistry
+
+Paired cluster bootstrap over `pair_id`, ensemble predictions across 3 model
+seeds, 2000 draws:
+
+| | test RMSE (mean over 3 seeds) |
+|---|---:|
+| A direct | 0.2435 |
+| Bc | **0.2241** |
+| **Δ = Bc − A** | **−0.019, 95 % CI [−0.022, −0.017], P(Bc better) = 1.000** |
+
+This is the strongest positive result. When chemistry is represented in
+training and the shift is along temperature, Van't Hoff bias improves
+extrapolation.
+
+### 5. Chemistry-shift improvement is not robust
+
+The original single cold-solute partition suggested Bc might help. Five
+repeated cold-solute holdouts (different held-out solute sets, 3 model seeds
+each) reversed the conclusion:
+
+- mean Δ (Bc − A) = **+0.0085**
+- Bc wins **1 of 5** holdouts
+- across-holdout std = 0.0093, range [−0.002, +0.022]
+
+Cold-pair (3 repeated holdouts) is a tie: mean Δ = −0.001, Bc wins 2 of 3.
+
+### 6. Joint (unseen chemistry + T-extrapolation) shows no Bc advantage
+
+Joint split: hold out 145 solutes; evaluate on the upper 25 % of each eligible
+held-out pair's temperature range (1,106 pairs, 2,820 test rows).
+
+| | test RMSE (mean ± std over 3 seeds) |
+|---|---|
+| A direct | 0.9377 ± 0.021 |
+| Bc | 0.9406 ± 0.007 |
+| Δ = Bc − A (ensemble) | **+0.003, 95 % CI [−0.010, +0.016], P(Bc better) = 0.33** |
+
+Adding T-extrapolation on top of chemistry shift does not rescue the physics
+model. An important negative result: the hypothesis that Bc benefit should
+scale with the T-extrapolation content of the shift is not supported.
+
+### 7. Mechanism — intercept, not slope
+
+Bc's residual from the empirical Van't Hoff line decomposes exactly:
+
+`ŷ − (a* + b*·z) = da + db·z`
+
+with `da = â − a*`, `db = b̂ − b*`. Median magnitudes on Bc test predictions:
+
+| split | median \|da\| (intercept) | median \|db·z\| (slope) | ratio |
+|---|---:|---:|---:|
+| T-extrap | 0.083 | 0.064 | 1.3× |
+| **cold-solute** | **0.527** | 0.038 | **13.7×** |
+
+Bc learns the temperature-response shape reasonably well; for unseen
+chemistry it places the whole curve at the wrong vertical position. Van't
+Hoff constrains the slope, not the intercept. This is the mechanism behind
+findings 5 and 6.
+
+### 8. Methodological note
+
+The notebook-07 fixed-split cold-solute bootstrap CI [−0.029, −0.006]
+described uncertainty from resampling *examples within one partition*.
+Across-partition variability, measured in notebook 08 by repeated group
+holdouts, is larger and reverses the conclusion. For chemistry-OOD claims,
+repeated group holdouts are the appropriate uncertainty quantification.
 
 ## Layout
 
 ```
-data/        BigSolDBv2.0.csv (unmodified), densities
-notebooks/   01_audit → 02_prepare_features → 03_make_splits → 04_train → 05_summarize
-scripts/     models.py (A/D/B/Bc)
-             run_stage4.py      3-seed A/D/B, all 5 splits
-             run_stage5.py      3-seed Bc, all 5 splits
-             analyze_stage4.py  seed stability + bootstrap
-             analyze_stage6.py  A/D/Bc benchmark + bootstrap
-             stage5_slopes.py   empirical slopes, units, oracles
-             stage5_scale_check.py / stage5_sanity.py / stage5_curves.py
-             stage6_similarity.py (RDKit env) / stage6_diagnose.py
-results/     stage{4,5,6}_summary.md  ← start here
-             metrics_stage{4,5}.csv, preds/, figs/, model_Bc_*.pt
-docs/        vanthoff_conventions.md   frozen formulation + manuscript notes
-             stage7_gine_design.md     next experiment (not implemented)
+data/       BigSolDBv2.0.csv, densities
+notebooks/
+  01_audit                     dataset integrity + counts
+  02_prepare_features          RDKit descriptors -> features.npz
+  03_make_splits               5 frozen splits -> splits.npz
+  04_train / 05_summarize      historical single-seed workflow (kept for reference)
+  06_multiseed_benchmark       A/D/B/Bc x 5 splits x 3 seeds (60 runs)
+  07_vanthoff_diagnostics      per-pair fits, oracle, slope recovery, bootstrap, error decomposition
+  08_distribution_shift_stress_tests  repeated cold-sol + cold-pair; joint chem+T split
+scripts/
+  models.py                    A / D / B / Bc definitions
+  train.py                     reusable training loop
+  prepare_b_scale.py           training-only per-split b_scale
+  verify_parity.py             one-shot parity harness (see results/parity_report.md)
+results/
+  metrics.csv                          historical seed-42 A/D/B (untouched)
+  parity_report.md                     Phase-1 refactor bit-parity, max |ΔRMSE| = 4.55e-08
+  b_scale.json                         per-split training-only b_scale
+  metrics_descriptor_multiseed.csv     notebook 06 combined 60-run table
+  metrics_stage{4,5}.csv               notebook 06 A/D/B and Bc separately
+  metrics_repeated_coldsol.csv         notebook 08 repeated cold-solute holdouts
+  metrics_repeated_coldpair.csv        notebook 08 repeated cold-pair holdouts
+  metrics_coldsol_textrap.csv          notebook 08 joint chem+T split
+  bootstrap_bc_vs_a.csv                notebook 07 paired bootstrap CIs
+  preds/                               per-run npz (test_idx, pair_id, T, y_true, y_pred, slope_a, slope_b)
+  preds_coldsol_textrap/               per-run npz for the joint split
+  fig07_*.png, fig08_*.png             analysis figures
 ```
 
 ## Reproducing
 
 ```
-python3 scripts/run_stage4.py          # A/D/B  × 5 splits × 3 seeds  (~22 min)
-python3 scripts/run_stage5.py          # Bc     × 5 splits × 3 seeds  (~10 min)
-python3 scripts/analyze_stage4.py
-python3 scripts/stage5_slopes.py && python3 scripts/stage5_sanity.py
-/path/to/envs/ml/bin/python scripts/stage6_similarity.py   # needs RDKit
-python3 scripts/analyze_stage6.py && python3 scripts/stage6_diagnose.py
+notebooks/01_audit.ipynb                             # dataset audit
+notebooks/02_prepare_features.ipynb                  # -> results/features.npz
+notebooks/03_make_splits.ipynb                       # -> results/splits.npz
+notebooks/06_multiseed_benchmark.ipynb               # ~60 min (60 training runs)
+notebooks/07_vanthoff_diagnostics.ipynb              # ~2 min (analysis only)
+notebooks/08_distribution_shift_stress_tests.ipynb   # ~40 min (54 training runs)
 ```
 
-Notes: import `sklearn` before `torch` (libomp clash on macOS). Training is
-bit-deterministic on a fixed machine but *not* across platforms — Stage-4 seed-42
-numbers differ from the original Linux `metrics.csv` in the 3rd–4th decimal, so
-all reported comparisons were re-run on one machine.
+Training is bit-deterministic on a fixed machine, not cross-platform. The
+refactor of the historical training loop into `scripts/train.py` was verified
+to `max |ΔRMSE| = 4.55e-08` against `results/metrics.csv` on all 15 seed-42
+A/D/B combos (`scripts/verify_parity.py`).
 
-## Next steps
+## Next
 
-1. **Stage 7 — GINE, as a test of the representation bottleneck.** Run the 2×2
-   (descriptor vs graph encoder) × (direct vs physics head) so the *interaction*
-   is the measured quantity. Gate on a descriptor-parity check (A_GINE ≈ A_MLP
-   on random) before interpreting anything OOD. Design and pre-registered
-   predictions in `docs/stage7_gine_design.md`. **The novelty stays "does
-   thermodynamic bias help generalization?" — not "we used a GNN".**
-2. **Fix cold-solute's resolving power.** Its bootstrap CI is ±0.04 wide against
-   145 held-out solutes; any GINE gain smaller than that is unresolvable.
-   Repeated group holdouts before treating it as decisive.
-3. **Redesign the cold-solvent evaluation** (7 solvents is too few) if that split
-   is to carry any claim.
-
-Deferred, in priority order: repeated-holdout evaluation → Kirchhoff Model C
-(low priority, see observation 7) → GAT → uncertainty quantification →
-hyperparameter sweeps.
+1. **Notebook 09 — temperature-data sparsity.** Test whether thermodynamic
+   inductive bias reduces the amount of temperature data needed per chemical
+   system.
+2. **Notebook 10 — GINE representation study.** Test whether a stronger
+   learned molecular representation improves the chemistry-dependent
+   intercept and changes the value of thermodynamic bias under chemical
+   shift.
