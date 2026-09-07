@@ -1,0 +1,9 @@
+group,quantity,value,source
+Van't Hoff fit quality,median per-pair R^2,0.9965,stage5_pair_fits.csv
+Van't Hoff fit quality,median residual RMSE [log S],0.0102,stage5_pair_fits.csv
+slope recovery,B  Pearson r / MAE [K],0.28 / 555,preds_mlp_pygenv
+slope recovery,Bc Pearson r / MAE [K],0.72 / 399,preds_mlp_pygenv
+T-extrapolation,Bc - A [log S] (95% CI),"-0.0156 [-0.0184, -0.0128]",preds_mlp_pygenv
+cold-solute mechanism,median |da| / |db*z| ratio,14.4x,preds_mlp_pygenv
+chemistry-OOD robustness,repeated cold-solute mean Bc - A,+0.0085 (Bc better 1/5),notebook 08 outputs
+representation,repeated cold-solute mean GINE - MLP (direct),+0.0389 (GINE better 1/5),metrics_coldsol_repeat.csv

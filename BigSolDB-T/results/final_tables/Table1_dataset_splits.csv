@@ -1,0 +1,7 @@
+split,train_rows,val_rows,test_rows,test_solutes,test_solvents,test_pairs,held_out
+random,80786,10098,10099,1305,69,6527,nothing (measurement-level)
+textrap,67902,7385,25696,1356,70,10301,upper 25% of each pair's T range
+coldsol,81610,8937,10436,145,64,1067,solutes
+coldpair,80806,10187,9990,710,63,1085,solute-solvent pairs
+coldsolv,77981,11262,11740,752,7,1226,solvents
+coldsol_textrap,81040,8806,2820,135,60,1106,"solutes, scored on their upper-T rows"

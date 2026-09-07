@@ -1,0 +1,21 @@
+split,model,n_seeds,rmse_mean,rmse_std,environment,source_file,authoritative_for
+random,A,3,0.2018,0.0056,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+random,D,3,0.2203,0.0078,base (torch 2.7.1),metrics_stage4.csv,historical control only
+random,B,3,0.2584,0.0234,base (torch 2.7.1),metrics_stage4.csv,historical control only
+random,Bc,3,0.2058,0.0097,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+textrap,A,3,0.2443,0.017,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+textrap,D,3,0.2401,0.0066,base (torch 2.7.1),metrics_stage4.csv,historical control only
+textrap,B,3,0.3073,0.0279,base (torch 2.7.1),metrics_stage4.csv,historical control only
+textrap,Bc,3,0.2295,0.0048,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldsol,A,3,0.8825,0.0096,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldsol,D,3,0.9003,0.0153,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldsol,B,3,0.887,0.0232,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldsol,Bc,3,0.8776,0.0257,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldpair,A,3,0.5597,0.0047,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldpair,D,3,0.5549,0.0061,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldpair,B,3,0.5599,0.0118,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldpair,Bc,3,0.5535,0.0084,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldsolv,D,3,0.4624,0.0222,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldsolv,B,3,0.4614,0.0548,base (torch 2.7.1),metrics_stage4.csv,historical control only
+coldsol_textrap,A,3,0.9323,0.0096,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
+coldsol_textrap,Bc,3,0.936,0.0189,PyG (torch 2.13),metrics_mlp_pygenv.csv,A vs Bc comparison
