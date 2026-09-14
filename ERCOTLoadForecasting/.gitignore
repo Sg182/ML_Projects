@@ -1,0 +1,5 @@
+# raw data files are downloaded by the notebook, no need to track them
+data/
+
+# Jupyter autosave copies
+.ipynb_checkpoints/
