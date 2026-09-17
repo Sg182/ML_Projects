@@ -1,12 +1,13 @@
+#SAME NAMES AND ORDER AS THE SELECTED MODEL IN NOTEBOOK 05 - DO NOT REORDER
 FEATURES = [
     "hour",
     "day_of_week",
     "month",
     "load_24h_ago",
     "load_168h_ago",
-    "forecast_temperature_houston",
-    "forecast_temperature_dallas",
     "forecast_temperature_austin",
+    "forecast_temperature_dallas",
+    "forecast_temperature_houston",
     "forecast_temperature_san_antonio",
 ]
 
