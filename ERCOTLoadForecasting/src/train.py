@@ -22,7 +22,7 @@ def train_model():
     y_test = test_df["ERCOT"]
 
     # 4. Train the model
-    #HYPERPARAMETERS WERE SELECTED IN NOTEBOOK 05 BY GRIDSEARCHCV WITH
+    #HYPERPARAMETERS WERE SELECTED IN NOTEBOOK 05 BY GRID SEARCH CV WITH
     #TIMESERIESSPLIT ON DEVELOPMENT DATA ONLY - DO NOT RETUNE THEM HERE
     model = GradientBoostingRegressor(
         n_estimators=200,
@@ -43,10 +43,10 @@ def train_model():
 
     model_path = "models/ercot_gb_model.joblib"
 
+    #SAVES THE TRAINED MODEL USING joblib
     os.makedirs("models", exist_ok=True)
 
     joblib.dump(model, model_path)
-
     print("Model saved to:", model_path)
 
     return model

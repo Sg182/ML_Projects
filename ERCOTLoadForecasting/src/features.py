@@ -1,4 +1,4 @@
-#SAME NAMES AND ORDER AS THE SELECTED MODEL IN NOTEBOOK 05 - DO NOT REORDER
+#ROLLING MODEL (NOTEBOOK 05): SAME NAMES AND ORDER AS SELECTED - DO NOT REORDER
 FEATURES = [
     "hour",
     "day_of_week",
@@ -9,6 +9,20 @@ FEATURES = [
     "forecast_temperature_dallas",
     "forecast_temperature_houston",
     "forecast_temperature_san_antonio",
+]
+
+#DAY-AHEAD MODEL (NOTEBOOK 06, 10 AM ISSUANCE PROTOCOL): ONLY INFORMATION
+#AVAILABLE BEFORE 10 AM ON THE DAY BEFORE THE TARGET - DO NOT REORDER
+FEATURES_DAYAHEAD = [
+    "hour",
+    "day_of_week",
+    "month",
+    "load_48h_ago",
+    "load_168h_ago",
+    "forecast_temperature_48h_austin",
+    "forecast_temperature_48h_dallas",
+    "forecast_temperature_48h_houston",
+    "forecast_temperature_48h_san_antonio",
 ]
 
 
