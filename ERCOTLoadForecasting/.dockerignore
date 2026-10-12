@@ -1,0 +1,30 @@
+# Files never sent to the Docker build - keeps the build context small and
+# guarantees secrets and dev clutter can't end up inside the image.
+
+# credentials - must never enter an image
+.env
+
+# datasets (45 MB, unused at inference - the API fetches live data)
+data/
+
+# development-only directories
+# (unlike .gitignore, dockerignore patterns only match from the context root,
+# so nested directories need the **/ prefix)
+notebooks/
+tests/
+scripts/
+.git/
+**/.vscode/
+
+# caches and bytecode
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+**/.ipynb_checkpoints/
+
+# the rolling model - this API only serves the day-ahead model
+models/ercot_gb_model.joblib
+
+# scratch files
+src/practice.py
+test_module.py
