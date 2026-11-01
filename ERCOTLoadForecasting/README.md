@@ -1,5 +1,7 @@
 # ERCOT Load Forecasting
 
+[![tests](https://github.com/Sg182/ML_Projects/actions/workflows/tests.yml/badge.svg)](https://github.com/Sg182/ML_Projects/actions/workflows/tests.yml)
+
 A learning project: forecasting hourly electricity demand for the Texas (ERCOT) grid.
 
 ## Data

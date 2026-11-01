@@ -1,0 +1,21 @@
+# core data / ML
+pandas==3.0.5
+numpy==2.4.6
+scikit-learn==1.9.0
+xgboost==3.2.0
+joblib==1.5.3
+
+# data download (ERCOT + Open-Meteo APIs, Excel reading)
+requests==2.34.2
+openpyxl==3.1.5
+
+# notebooks / plots
+matplotlib==3.11.1
+
+# API serving
+fastapi==0.141.1
+uvicorn==0.53.0
+
+# tests (httpx is required by FastAPI's TestClient)
+pytest==9.1.1
+httpx==0.28.1

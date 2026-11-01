@@ -3,3 +3,17 @@ data/
 
 # Jupyter autosave copies
 .ipynb_checkpoints/
+
+# Python bytecode and pytest cache
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# credentials and local environment - never commit these
+.env
+
+# editor settings
+.vscode/
+
+# trained model artifacts (regenerate with: python -m src.train / train_dayahead)
+models/

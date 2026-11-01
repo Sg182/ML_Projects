@@ -11,8 +11,18 @@ from src.dayahead_features import build_dayahead_features
 
 app = FastAPI()
 
-#LOAD THE MODEL ONCE AT STARTUP, NOT ONCE PER REQUEST
-dayahead_model = joblib.load("models/ercot_gb_dayahead.joblib")
+MODEL_PATH = "models/ercot_gb_dayahead.joblib"
+
+#LOADED ONCE AND REUSED FOR EVERY REQUEST, BUT NOT AT IMPORT TIME: IMPORTING
+#THIS MODULE MUST NOT REQUIRE THE ARTIFACT, OR THE TESTS CANNOT RUN WITHOUT IT
+_dayahead_model = None
+
+
+def load_dayahead_model():
+    global _dayahead_model
+    if _dayahead_model is None:
+        _dayahead_model = joblib.load(MODEL_PATH)
+    return _dayahead_model
 
 
 class LoadInput(BaseModel):
@@ -68,7 +78,15 @@ def forecast_day_ahead():
     except requests.RequestException as error:
         raise HTTPException(status_code=502, detail=f"upstream data source failed: {error}")
 
-    predictions = dayahead_model.predict(features)
+    try:
+        model = load_dayahead_model()
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=503,
+            detail=f"model artifact missing at {MODEL_PATH} - run: python -m src.train_dayahead",
+        )
+
+    predictions = model.predict(features)
 
     return {
         "forecast_date": str(features.index[0].date()),

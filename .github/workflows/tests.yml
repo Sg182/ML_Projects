@@ -1,0 +1,36 @@
+# Runs the ERCOT test suite on a clean machine every time code is pushed.
+# The point is the "clean machine": nothing from a laptop is present here, so
+# this catches anything that only works because of local setup.
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Copy the repository onto the fresh machine
+      - uses: actions/checkout@v4
+
+      # 2. Install the Python version the models were trained with
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ERCOTLoadForecasting/requirements.txt
+
+      # 3. Install exactly what requirements.txt declares - if a dependency is
+      #    missing from that file, this step fails and the build goes red
+      - name: Install dependencies
+        working-directory: ERCOTLoadForecasting
+        run: pip install -r requirements.txt
+
+      # 4. Run the suite. No ERCOT credentials and no downloaded datasets are
+      #    needed: every test uses synthetic data or a temporary file, and the
+      #    one test that needs the trained model skips when it is absent.
+      # "python -m pytest", not bare "pytest": the -m form puts the current
+      # directory on sys.path, which is what makes "import src.api" work
+      - name: Run tests
+        working-directory: ERCOTLoadForecasting
+        run: python -m pytest -v
