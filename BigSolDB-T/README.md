@@ -55,6 +55,28 @@ extrapolation but not under chemistry shift:
 
 ![performance across distribution shift](results/final_figures/Fig3_distribution_shift_performance.png)
 
+### Test RMSE, A (direct) vs Bc (van't Hoff head), 3 seeds
+
+Matched models: same encoder, backbone and training setup; only the temperature
+pathway differs. Source: [`Table2_main_benchmark.csv`](results/final_tables/Table2_main_benchmark.csv),
+per-seed values in [`metrics_mlp_pygenv.csv`](results/metrics_mlp_pygenv.csv).
+
+| Split | A (direct) | Bc (van't Hoff) | Reduction of means | Mean of per-seed reductions |
+|---|---|---|---|---|
+| temperature extrapolation | 0.2443 ± 0.0170 | 0.2295 ± 0.0048 | +6.1% | +5.7% |
+| cold-solute (unseen solute) | 0.8825 ± 0.0096 | 0.8776 ± 0.0257 | +0.6% | +0.6% |
+| cold-pair | 0.5597 ± 0.0047 | 0.5535 ± 0.0084 | +1.1% | +1.1% |
+| cold-solute + temp. extrapolation | 0.9323 ± 0.0096 | 0.9360 ± 0.0189 | −0.4% | −0.4% |
+| random | 0.2018 ± 0.0056 | 0.2058 ± 0.0097 | −2.0% | −2.2% |
+
+**How much to trust the 6%.** Per-seed reductions on the temperature-extrapolation
+split are +2.8%, +14.4% and +0.04%. The whole effect rests on one run in which the
+direct baseline did unusually badly (0.2639, against its own other runs at ~0.234),
+and the gap between the means (0.0148) is smaller than the baseline's own run-to-run
+standard deviation (0.0170). With three seeds this is suggestive, not established.
+The qualitative result — the physics head helps under temperature extrapolation and
+not under chemistry shift — is the part the evidence supports.
+
 Publication-quality PDFs for all figures are in
 [`results/final_figures/`](results/final_figures), and the corresponding tables
 in [`results/final_tables/`](results/final_tables).
