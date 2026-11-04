@@ -6,7 +6,7 @@ step decided, and what is still open.
 `README.md` answers "what is this and how do I run it". This file answers
 "why does it look like this, and what was I doing last?"
 
-**Last updated:** 2026-11-01 · **Status:** working end-to-end; one open decision (see [Open questions](#open-questions))
+**Last updated:** 2026-11-04 · **Status:** working end-to-end; one open decision (see [Open questions](#open-questions))
 
 ---
 
@@ -15,7 +15,7 @@ step decided, and what is still open.
 | | |
 |---|---|
 | Notebooks | 01–06 complete |
-| `src/` modules | 9 files — data, features, train, predict, api, day-ahead pipeline, ERCOT auth/live |
+| `src/` modules | 10 files — data, features, train, predict, api, day-ahead pipeline, MLP comparison, ERCOT auth/live |
 | Tests | **24 passing** (`python -m pytest -q`, ~1.6s, no credentials needed) |
 | CI | GitHub Actions on every push — `.github/workflows/tests.yml` |
 | Docker | `Dockerfile` present, service containerized |
@@ -26,7 +26,7 @@ step decided, and what is still open.
 
 ## How it got here
 
-Seven phases. Each one existed because the previous one failed in a specific way.
+Eight phases. Each one existed because the previous one failed in a specific way.
 Dates are the first-commit dates from git history, not from memory.
 
 ### 1. Get the data honest (notebook 01) — Sep 12
@@ -110,6 +110,26 @@ compared to, it wins clearly.
 - Containerized (Oct 11)
 - GitHub Actions CI on a clean machine (Oct 31) — catches anything that only
   worked because of local laptop setup
+
+### 8. Was it ever the algorithm? (`src/train_mlp_dayahead.py`) — Nov 4
+
+Every model so far has been a tree or a linear fit. The obvious unanswered question:
+would a neural network have done better all along?
+
+A multi-layer perceptron, same nine features, same split, same protocol, tuned on
+development data only. Two scalers are needed that the tree models never required —
+one on the inputs (hour is 0–23, load is ~30,000–80,000 MW) and one on the target
+(a default output layer cannot reach tens of thousands without a long warm-up).
+
+| Model | Test MAE | Test RMSE | R² |
+|---|---|---|---|
+| Gradient boosting | 3,073 MW | 3,692 MW | 0.867 |
+| **MLP** | **3,092 MW** | **3,680 MW** | **0.868** |
+
+**Result:** a tie — 0.6% behind on MAE, slightly ahead on RMSE. Which is the answer to
+the question. Notebook 02 saw six model classes cluster within ~8%; the MLP joins the
+same cluster. Features and protocol set the ceiling here, not the function class, and
+no amount of model shopping was going to move it.
 
 ---
 

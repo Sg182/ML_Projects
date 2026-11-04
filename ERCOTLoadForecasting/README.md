@@ -69,6 +69,13 @@ picks up:
 The baseline is a seasonal naive at 48 hours (same hour, two days prior) — the 24-hour
 naive is inadmissible here because yesterday has not finished at a 10 AM issuance.
 
+A multi-layer perceptron under the identical protocol (`src/train_mlp_dayahead.py`, tuned on
+development data only) lands at MAE 3,092 MW, RMSE 3,680 MW, R² 0.868 — within 0.6% of
+gradient boosting on MAE, and fractionally ahead of it on RMSE. That reproduces the clustering
+notebook 02 found among six model classes, and is the clearest evidence that this problem is
+limited by its features and its issuance protocol rather than by the function class. The MLP
+is a diagnostic: it is not served and not saved to `models/`.
+
 These numbers are **not** comparable with the rolling 24-hour results in notebooks 02–05
 (e.g. RMSE 3,332 MW, R² 0.892 with no weather). That model answers a different question
 under a protocol that cannot be operated on a fixed schedule; moving to the honest
@@ -122,6 +129,7 @@ models in `models/` are rebuilt by the training commands above.
 - [x] `notebooks/05_forecast_weather.ipynb` — leakage-free day-ahead GFS forecast temperatures; forecast weather performs close to realized weather over the test year
 - [x] `notebooks/06_dayahead_protocol.ipynb` — fixed 10 AM issuance protocol: 48h lags + previous-day2 forecasts
 - [x] `src/` modules reproduce the selected models bit-exactly from committed code
+- [x] neural-network comparison — MLP under the day-ahead protocol, within 0.6% of gradient boosting
 - [x] live feature pipeline (ERCOT real-time load + Open-Meteo forecast temperatures)
 - [x] FastAPI day-ahead endpoint `POST /forecast/day-ahead` (`src/api.py`)
 - [x] automated test suite — 24 test functions across `tests/`, run with `python -m pytest`
